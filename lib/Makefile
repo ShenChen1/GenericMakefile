@@ -421,15 +421,15 @@ help :
 	@$(ECHO) "    lib           - Just the static library"
 	@$(ECHO) "    so            - Just the dynamic library"
 	@$(ECHO) "  Clean targets:"
-	@$(ECHO) "    clean         - Just all libraries"
+	@$(ECHO) "    clean         - All libraries and object files"
 
 # Handy rule to skip making libraries and just make main library.
 .PHONY : lib
 lib : $(LIB)
 	@$(ECHO) [$(LIB) build complete]
 
-.PHONY : lib_so
-lib_so : $(LIB_SO)
+.PHONY : so
+so : $(LIB_SO)
 	@$(ECHO) [$(LIB_SO) build complete]
 
 # Clean just the library.
