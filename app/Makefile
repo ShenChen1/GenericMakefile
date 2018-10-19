@@ -2,54 +2,60 @@
 #              VARIABLES APPENDED TO BY INCLUDED MAKEFILE FRAGMENTS
 #------------------------------------------------------------------------------
 
-
 #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 #                           GENERATED SETTINGS START                         v
 #vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
 # The following TYPE comment allows tools to identify the 'type' of target this 
 # makefile is associated with. 
-# TYPE: LIB_MAKEFILE
+# TYPE: APP_MAKEFILE
 
-# The library name (without a "lib" prefix or ".a/.so" suffix).
-#
-# It may be used by the makefile fragments so is defined before including them.
-#
-LIB_NAME := func
+# Define path to the application ELF. 
+# It may be used by the makefile fragments so is defined before including them. 
+# 
+ELF := test.elf
 
 # Paths to C, C++, and assembly source files.
-C_SRCS   := src/func.c
+C_SRCS := src/main.c
 CXX_SRCS :=
 ASM_SRCS :=
 
 # Path to root of object file tree.
 OBJ_ROOT_DIR := obj
 
-# Common arguments for LIB_CFLAGS
-LIB_CFLAGS_DEFINED_SYMBOLS :=
-LIB_CFLAGS_UNDEFINED_SYMBOLS :=
-LIB_CFLAGS_OPTIMIZATION := -O0
-LIB_CFLAGS_DEBUG_LEVEL := -g
-LIB_CFLAGS_WARNINGS := -Wall
-LIB_CFLAGS_USER_FLAGS :=
+# Options to control objdump.
+CREATE_OBJDUMP := 1
+OBJDUMP_INCLUDE_SOURCE := 1
+OBJDUMP_FULL_CONTENTS := 1
 
-LIB_ASFLAGS_USER :=
+# Options to enable/disable optional files.
+CREATE_LINKER_MAP := 1
 
-# Common arguments for LIB_ARCHIVER_FLAGS
-LIB_ARCHIVER_FLAGS := -src
+# Common arguments for ALT_CFLAGSs
+APP_CFLAGS_DEFINED_SYMBOLS :=
+APP_CFLAGS_UNDEFINED_SYMBOLS :=
+APP_CFLAGS_OPTIMIZATION := -O0
+APP_CFLAGS_DEBUG_LEVEL := -g
+APP_CFLAGS_WARNINGS := -Wall
+APP_CFLAGS_USER_FLAGS :=
 
-# Common arguments for LIB_SOLIB_FLAGS
-LIB_SOLIB_FLAGS := -shared -fPIC
+APP_ASFLAGS_USER :=
+APP_LDFLAGS_USER :=
 
-# List of library specific include directories
-LIB_INCLUDE_DIRS := inc
+# Linker options that have default values assigned later if not
+# assigned here.
+LINKER_SCRIPT :=
+CRT0 :=
+SYS_LIB :=
+
+# List of application specific include directories, library directories and library names
+APP_INCLUDE_DIRS := inc
+APP_LIBRARY_DIRS := lib
+APP_LIBRARY_NAMES := func
 
 # Pre- and post- processor settings.
 BUILD_PRE_PROCESS :=
 BUILD_POST_PROCESS :=
-
-# List of public include directories for -I compiler option (-I added when used).
-INC_DIRS :=
 
 #END GENERATED
 
@@ -70,7 +76,12 @@ endif
 # Put "all" rule before included makefile fragments because they may
 # define rules and we don't want one of those to become the default rule.
 .PHONY : all
-all : build_pre_process lib so build_post_process
+
+all:
+	@$(ECHO) [$(APP_NAME) build complete]
+
+all : build_pre_process app build_post_process 
+
 
 #------------------------------------------------------------------------------
 #                 VARIABLES DEPENDENT ON GENERATED CONTENT
@@ -79,44 +90,86 @@ all : build_pre_process lib so build_post_process
 # Define object file directory per build configuration
 CONFIG_OBJ_DIR := $(OBJ_ROOT_DIR)
 
-# Library file name 
-LIB    := lib$(LIB_NAME).a
-LIB_SO := lib$(LIB_NAME).so
+# Name of ELF application.
+APP_NAME := $(basename $(ELF))
 
-# Archive per build configuration
-ACTIVE_CONFIG_LIB    := $(CONFIG_OBJ_DIR)/$(LIB)
-ACTIVE_CONFIG_LIB_SO := $(CONFIG_OBJ_DIR)/$(LIB_SO)
+# Set to defaults if variables not already defined in settings.
+ifeq ($(LINKER_SCRIPT),)
+LINKER_SCRIPT := $(BSP_LINKER_SCRIPT)
+endif
+ifeq ($(CRT0),)
+CRT0 := $(BSP_CRT0)
+endif
+ifeq ($(SYS_LIB),)
+SYS_LIB := $(BSP_SYS_LIB)
+endif
+
+OBJDUMP_NAME := $(APP_NAME).objdump
+OBJDUMP_FLAGS := --disassemble --syms --all-header
+ifeq ($(OBJDUMP_INCLUDE_SOURCE),1)
+OBJDUMP_FLAGS += --source
+endif
+ifeq ($(OBJDUMP_FULL_CONTENTS),1)
+OBJDUMP_FLAGS += --full-contents
+endif
+
+# Create list of linker dependencies (*.a files).
+APP_LDDEPS := $(LDDEPS)
 
 # Take lists and add required prefixes.
-LIB_INC_DIRS := $(addprefix -I, $(LIB_INCLUDE_DIRS) $(INC_DIRS))
+APP_INC_DIRS := $(addprefix -I, $(APP_INCLUDE_DIRS) $(INC_DIRS))
+ASM_INC_PREFIX := -Wa,-I
+APP_ASM_INC_DIRS := $(addprefix $(ASM_INC_PREFIX), $(APP_INCLUDE_DIRS) $(INC_DIRS))
+APP_LIB_DIRS := $(addprefix -L, $(APP_LIBRARY_DIRS) $(LIB_DIRS))
+APP_LIBS := $(addprefix -l, $(APP_LIBRARY_NAMES) $(LIBS))
 
 # Arguments for the C preprocessor, C/C++ compiler, assembler, and linker.
-LIB_CFLAGS := $(LIB_CFLAGS_DEFINED_SYMBOLS) \
-              $(LIB_CFLAGS_UNDEFINED_SYMBOLS) \
-              $(LIB_CFLAGS_OPTIMIZATION) \
-              $(LIB_CFLAGS_DEBUG_LEVEL) \
-              $(LIB_CFLAGS_WARNINGS) \
-              $(LIB_CFLAGS_USER_FLAGS) \
+APP_CFLAGS := $(APP_CFLAGS_DEFINED_SYMBOLS) \
+              $(APP_CFLAGS_UNDEFINED_SYMBOLS) \
+              $(APP_CFLAGS_OPTIMIZATION) \
+              $(APP_CFLAGS_DEBUG_LEVEL) \
+              $(APP_CFLAGS_WARNINGS) \
+              $(APP_CFLAGS_USER_FLAGS) \
+              $(ALT_CFLAGS) \
               $(CFLAGS)
 
 # Arguments only for the C++ compiler.
-LIB_CXXFLAGS := $(CXXFLAGS)
+APP_CXXFLAGS := $(CXXFLAGS)
 
 # Arguments only for the C preprocessor.
 # Prefix each include directory with -I.
-LIB_CPPFLAGS := $(LIB_INC_DIRS) \
+APP_CPPFLAGS := $(APP_INC_DIRS) \
                 $(CPPFLAGS)
 
 # Arguments only for the assembler.
-LIB_ASFLAGS := $(LIB_ASM_INC_DIRS) \
-               $(LIB_ASFLAGS_USER) \
+APP_ASFLAGS := $(APP_ASM_INC_DIRS) \
+               $(APP_ASFLAGS_USER) \
                $(ASFLAGS)
 
-# Arguments only for the archiver.
-LIB_ARFLAGS := $(LIB_ARCHIVER_FLAGS)
+# Arguments only for the linker.
+APP_LDFLAGS := $(APP_LDFLAGS_USER)
 
-# Arguments only for the so lib.
-LIB_SOFLAGS := $(LIB_SOLIB_FLAGS)
+ifneq ($(LINKER_SCRIPT),)
+APP_LDFLAGS += -T'$(LINKER_SCRIPT)'
+endif
+
+# Arguments only for the ctr.o.
+ifneq ($(CRT0),)
+APP_LDFLAGS += $(CRT0)
+endif
+
+APP_LDFLAGS += \
+           $(APP_LIB_DIRS) \
+           $(LDFLAGS)
+
+LINKER_MAP_NAME := $(APP_NAME).map
+ifeq ($(CREATE_LINKER_MAP), 1)
+APP_LDFLAGS += -Wl,-Map=$(LINKER_MAP_NAME)
+endif
+
+#------------------------------------------------------------------------------
+#           MAKEFILE INCLUDES DEPENDENT ON GENERATED CONTENT
+#------------------------------------------------------------------------------
 
 # Create list of object files to be built using the list of source files.
 # The source file hierarchy is preserved in the object tree.
@@ -176,7 +229,7 @@ SDIR_OBJ_LIST := $(sort $(SDIR_OBJ_LIST_C) $(SDIR_OBJ_LIST_CPP) \
 # lists, and then handles them as appropriate.
 
 FLATTEN_OBJ_LIST := $(filter ../%,$(OBJ_LIST))
-FLATTEN_LIB_OBJS := $(addprefix $(CONFIG_OBJ_DIR)/,$(notdir $(FLATTEN_OBJ_LIST)))
+FLATTEN_APP_OBJS := $(addprefix $(CONFIG_OBJ_DIR)/,$(notdir $(FLATTEN_OBJ_LIST)))
 
 REGULAR_OBJ_LIST 		:= $(filter-out $(FLATTEN_OBJ_LIST),$(OBJ_LIST))
 REGULAR_OBJ_LIST_C 		:= $(filter $(OBJ_LIST_C),$(REGULAR_OBJ_LIST))
@@ -187,7 +240,7 @@ REGULAR_OBJ_LIST_S 		:= $(filter $(OBJ_LIST_S),$(REGULAR_OBJ_LIST))
 REGULAR_OBJ_LIST_SS		:= $(filter $(OBJ_LIST_SS),$(REGULAR_OBJ_LIST))
 
 FLATTEN_SDIR_OBJ_LIST := $(filter ../%,$(SDIR_OBJ_LIST))
-FLATTEN_SDIR_LIB_OBJS := $(addprefix $(CONFIG_OBJ_DIR)/,$(notdir $(FLATTEN_SDIR_OBJ_LIST)))
+FLATTEN_SDIR_APP_OBJS := $(addprefix $(CONFIG_OBJ_DIR)/,$(notdir $(FLATTEN_SDIR_OBJ_LIST)))
 
 REGULAR_SDIR_OBJ_LIST 		:= $(filter-out $(FLATTEN_SDIR_OBJ_LIST),$(SDIR_OBJ_LIST))
 REGULAR_SDIR_OBJ_LIST_C 	:= $(filter $(SDIR_OBJ_LIST_C),$(REGULAR_SDIR_OBJ_LIST))
@@ -199,39 +252,39 @@ REGULAR_SDIR_OBJ_LIST_SS	:= $(filter $(SDIR_OBJ_LIST_SS),$(REGULAR_SDIR_OBJ_LIST
 
 VPATH := $(sort $(dir $(FLATTEN_OBJ_LIST)) $(dir $(FLATTEN_SDIR_OBJ_LIST)))
 
-LIB_OBJS_C := $(addprefix $(CONFIG_OBJ_DIR)/,\
+APP_OBJS_C := $(addprefix $(CONFIG_OBJ_DIR)/,\
 	$(REGULAR_SDIR_OBJ_LIST_C) \
 	$(foreach s,$(REGULAR_OBJ_LIST_C),$s))
 
-LIB_OBJS_CPP := $(addprefix $(CONFIG_OBJ_DIR)/,\
+APP_OBJS_CPP := $(addprefix $(CONFIG_OBJ_DIR)/,\
 	$(REGULAR_SDIR_OBJ_LIST_CPP) \
 	$(foreach s,$(REGULAR_OBJ_LIST_CPP),$s))
 
-LIB_OBJS_CXX := $(addprefix $(CONFIG_OBJ_DIR)/,\
+APP_OBJS_CXX := $(addprefix $(CONFIG_OBJ_DIR)/,\
 	$(REGULAR_SDIR_OBJ_LIST_CXX) \
 	$(foreach s,$(REGULAR_OBJ_LIST_CXX),$s))
 
-LIB_OBJS_CC := $(addprefix $(CONFIG_OBJ_DIR)/,\
+APP_OBJS_CC := $(addprefix $(CONFIG_OBJ_DIR)/,\
 	$(REGULAR_SDIR_OBJ_LIST_CC) \
 	$(foreach s,$(REGULAR_OBJ_LIST_CC),$s))
 
-LIB_OBJS_S := $(addprefix $(CONFIG_OBJ_DIR)/,\
+APP_OBJS_S := $(addprefix $(CONFIG_OBJ_DIR)/,\
 	$(REGULAR_SDIR_OBJ_LIST_S) \
 	$(foreach s,$(REGULAR_OBJ_LIST_S),$s))
 
-LIB_OBJS_SS := $(addprefix $(CONFIG_OBJ_DIR)/,\
+APP_OBJS_SS := $(addprefix $(CONFIG_OBJ_DIR)/,\
 	$(REGULAR_SDIR_OBJ_LIST_SS) \
 	$(foreach s,$(REGULAR_OBJ_LIST_SS),$s))
 
-LIB_OBJS := $(LIB_OBJS_C) $(LIB_OBJS_CPP) $(LIB_OBJS_CXX) $(LIB_OBJS_CC) \
-	$(LIB_OBJS_S) $(LIB_OBJS_SS) \
-	$(FLATTEN_LIB_OBJS) $(FLATTEN_SDIR_LIB_OBJS)
+APP_OBJS := $(APP_OBJS_C) $(APP_OBJS_CPP) $(APP_OBJS_CXX) $(APP_OBJS_CC) \
+	$(APP_OBJS_S) $(APP_OBJS_SS) \
+	$(FLATTEN_APP_OBJS) $(FLATTEN_SDIR_APP_OBJS)
 
 # Add any extra user-provided object files.
-LIB_OBJS += $(OBJS)
+APP_OBJS += $(OBJS)
 
 # Create list of dependancy files for each object file.
-LIB_DEPS := $(LIB_OBJS:.o=.d)
+APP_DEPS := $(APP_OBJS:.o=.d)
 
 #------------------------------------------------------------------------------
 #                           BUILD PRE/POST PROCESS
@@ -298,15 +351,15 @@ ifeq ($(origin LD),default)
 LD := $(CROSS_COMPILE)g++
 endif
 
+ifeq ($(origin NM),default)
+NM := $(CROSS_COMPILE)nm
+endif
+
 ifeq ($(origin RM),default)
 RM := $(DEFAULT_RM)
 endif
 
-ifeq ($(NM),)
-NM := $(CROSS_COMPILE)nm
-endif
-
-ifeq ($(CP),)
+ifeq ($(origin CP),default)
 CP := $(DEFAULT_CP)
 endif
 
@@ -329,21 +382,27 @@ endif
 define compile.c
 @$(ECHO) Info: Compiling $< to $@
 @$(MKDIR) $(@D)
-$(CC) -MP -MMD -c $(LIB_CPPFLAGS) $(LIB_CFLAGS) -o $@ $<
+$(CC) -MP -MMD -c $(APP_CPPFLAGS) $(APP_CFLAGS) -o $@ $<
 $(CC_POST_PROCESS)
 endef
 
 define compile.cpp
 @$(ECHO) Info: Compiling $< to $@
 @$(MKDIR) $(@D)
-$(CXX) -MP -MMD -c $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+$(CXX) -MP -MMD -c $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 $(CXX_POST_PROCESS)
 endef
+
+# If assembling with the compiler, ensure "-Wa," is prepended to all APP_ASFLAGS
+ifeq ($(AS),$(patsubst %as,%,$(AS)))
+COMMA := ,
+APP_ASFLAGS :=  $(filter-out $(APP_CFLAGS),$(addprefix -Wa$(COMMA),$(patsubst -Wa$(COMMA)%,%,$(APP_ASFLAGS))))
+endif
 
 define compile.s
 @$(ECHO) Info: Assembling $< to $@
 @$(MKDIR) $(@D)
-$(AS) -MP -MMD -c $(LIB_CPPFLAGS) $(LIB_CFLAGS) $(LIB_ASFLAGS) -o $@ $<
+$(AS) -MP -MMD -c $(APP_CPPFLAGS) $(APP_CFLAGS) $(APP_ASFLAGS) -o $@ $<
 $(AS_POST_PROCESS)
 endef
 
@@ -372,42 +431,42 @@ $(CONFIG_OBJ_DIR)/%.o: %.s
 $(CONFIG_OBJ_DIR)/%.s: %.c
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CC) -S $(LIB_CPPFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CC) -S $(APP_CPPFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.s: %.cpp
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CXX) -S $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CXX) -S $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.s: %.cc
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CXX) -S $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CXX) -S $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.s: %.cxx
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CXX) -S $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CXX) -S $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.i: %.c
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CC) -E $(LIB_CPPFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CC) -E $(APP_CPPFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.i: %.cpp
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CXX) -E $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CXX) -E $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.i: %.cc
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CXX) -E $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CXX) -E $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 
 $(CONFIG_OBJ_DIR)/%.i: %.cxx
 	@$(ECHO) Info: Compiling $< to $@
 	@$(MKDIR) $(@D)
-	$(CXX) -E $(LIB_CPPFLAGS) $(LIB_CXXFLAGS) $(LIB_CFLAGS) -o $@ $<
+	$(CXX) -E $(APP_CPPFLAGS) $(APP_CXXFLAGS) $(APP_CFLAGS) -o $@ $<
 
 #------------------------------------------------------------------------------
 #                        TARGET RULES
@@ -417,56 +476,39 @@ $(CONFIG_OBJ_DIR)/%.i: %.cxx
 help :
 	@$(ECHO) "Summary of Makefile targets"
 	@$(ECHO) "  Build targets:"
-	@$(ECHO) "    all (default) - Static library and dynamic library"
-	@$(ECHO) "    lib           - Just the static library"
-	@$(ECHO) "    so            - Just the dynamic library"
-	@$(ECHO) "  Clean targets:"
-	@$(ECHO) "    clean         - All libraries and object files"
+	@$(ECHO) "    all (default)     - Application"
+	@$(ECHO) "    clean             - Application"
 
-# Handy rule to skip making libraries and just make main library.
-.PHONY : lib
-lib : $(LIB)
-	@$(ECHO) [$(LIB) build complete]
+# Handy rule to skip making libraries and just make application.
+.PHONY : app
+app : $(ELF)
 
-.PHONY : so
-so : $(LIB_SO)
-	@$(ECHO) [$(LIB_SO) build complete]
+ifeq ($(CREATE_OBJDUMP), 1)
+app : $(OBJDUMP_NAME)
+endif
 
-# Clean just the library.
+# Clean just the application.
 .PHONY : clean
 clean :
-	@$(RM) -r $(LIB) $(LIB_SO) $(OBJ_ROOT_DIR)
-	@$(ECHO) [$(LIB_NAME) clean complete]
+	@$(RM) -r $(ELF) $(OBJDUMP_NAME) $(LINKER_MAP_NAME) $(OBJ_ROOT_DIR)
+	@$(ECHO) [$(APP_NAME) clean complete]
 
-# Include the dependency files
--include $(LIB_DEPS)
+# Include the dependency files unless the make goal is performing a clean
+# of the application.
+-include $(APP_DEPS)
 
-# Delete the target of a rule if it has changed and its commands exit
+# Delete the target of a rule if it has changed and its commands exit 
 # with a nonzero exit status.
 .DELETE_ON_ERROR:
 
 #------------------------------------------------------------------------------
-#                         AR TARGET RULE
+#                         ELF TARGET RULE
 #------------------------------------------------------------------------------
-# Rule for constructing the library file.
-$(ACTIVE_CONFIG_LIB) : $(LIB_OBJS)
-	@$(ECHO) Info: Archiving $@
-	@$(RM) $@
-	@$(MKDIR) $(@D)
-	$(AR) $(LIB_ARFLAGS) $@ $^
+# Rule for constructing the executable elf file.
+$(ELF) : $(APP_OBJS) $(LINKER_SCRIPT) $(APP_LDDEPS)
+	@$(ECHO) Info: Linking $@
+	$(LD) $(APP_LDFLAGS) $(APP_CFLAGS) -o $@ $(filter-out $(CRT0),$(APP_OBJS)) $(APP_LIBS)
 
-$(ACTIVE_CONFIG_LIB_SO) : $(LIB_OBJS)
-	@$(ECHO) Info: Building $@
-	@$(RM) $@
-	@$(MKDIR) $(@D)
-	$(LD) $(LIB_SOFLAGS) -o $@ $^
-
-$(LIB) : $(ACTIVE_CONFIG_LIB)
-	@$(CP) $< $@
-
-$(LIB_SO) : $(ACTIVE_CONFIG_LIB_SO)
-	@$(CP) $< $@
-
-# Declare $(LIB) as phony as we want to always copy prebuilt $(ACTIVE_CONFIG_LIB)
-# when we switch build configurations even if $(ACTIVE_CONFIG_LIB) is not rearchived.
-.PHONY: $(LIB) $(LIB_SO)
+$(OBJDUMP_NAME) : $(ELF)
+	@$(ECHO) Info: Creating $@
+	$(OBJDUMP) $(OBJDUMP_FLAGS) $< >$@
